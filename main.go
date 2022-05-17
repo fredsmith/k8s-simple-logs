@@ -6,6 +6,8 @@ import (
   "github.com/gin-gonic/gin"
   "context"
   "fmt"
+  "strings"
+  "io"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
   corev1 "k8s.io/api/core/v1"
@@ -42,22 +44,28 @@ func setupRouter() *gin.Engine {
   })
 
   r.GET("/logs", func(c *gin.Context) {
-  var output = ""
-  // get all pods in our namespace
-  pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
-  if err != nil {
-			panic(err.Error())
-	}
+    var output = ""
+    // get all pods in our namespace
+    pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+    if err != nil {
+        panic(err.Error())
+    }
 
-  for i, pod := range pods.Items {
-     // get the logs here 
-     req := clientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &podLogOpts)
+    for i, pod := range pods.Items {
+      buf := new(strings.Builder)
+      // get the logs here 
+      req := clientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &podLogOpts)
+      // 
+      output += fmt.Sprintf("%d, %s - %s:", i, namespace, pod.Name)
+      logoutput, err := req.Stream(context.TODO())
+      if err != nil {
+          panic(err.Error())
+      }
+      io.Copy(buf,logoutput)
+      output += buf.String()
+     }
 
-     output += fmt.Sprintf("%d, %s:", i, pod.Name)
-     output += req.Stream(context.TODO())
-   }
-
-   c.String(http.StatusOK, output)
+     c.String(http.StatusOK, output)
   })
 
   return r
