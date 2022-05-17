@@ -4,14 +4,11 @@ import (
   "net/http"
   "os"
   "github.com/gin-gonic/gin"
-  "crypto/tls"
-  "crypto/x509"
   "context"
-	"fmt"
-	"time"
+  "fmt"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+  corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -28,11 +25,15 @@ func setupRouter() *gin.Engine {
 	if err != nil {
 		panic(err.Error())
 	}
+  // get the namespace we're in.
+  namespaceByte, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+  namespace := fmt.Sprintf("%s", namespaceByte)
+  // globally set pod logs options
+  podLogOpts := corev1.PodLogOptions{}
 
-  namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-  if err != nil {
-    panic(err)
-  }
+  if err != nil {
+    panic(err)
+  }
   r := gin.Default()
 
   // Ping
@@ -41,24 +42,19 @@ func setupRouter() *gin.Engine {
   })
 
   r.GET("/logs", func(c *gin.Context) {
-    var output :=
+  var output = ""
   // get all pods in our namespace
-  pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+  pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
   if err != nil {
 			panic(err.Error())
 	}
 
-  for i, podID := range pods {
+  for i, pod := range pods.Items {
      // get the logs here 
-     req := clientset.RESTClient.Get().
-          Namespace(namespace).
-          Name(podID).
-          Resource("pods").
-          SubResource("log").
-          
-     req.param(tailLines, "40")
+     req := clientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &podLogOpts)
 
-     output += req.Stream()
+     output += fmt.Sprintf("%d, %s:", i, pod.Name)
+     output += req.Stream(context.TODO())
    }
 
    c.String(http.StatusOK, output)
