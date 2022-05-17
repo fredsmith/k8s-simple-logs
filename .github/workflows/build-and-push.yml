@@ -42,5 +42,5 @@ jobs:
       uses: peter-evans/dockerhub-description@v3
       with:
         username: derf
-        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
         repository: derf/k8s-simple-logs
