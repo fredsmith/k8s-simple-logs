@@ -15,7 +15,6 @@ jobs:
     - name: Login to Docker Container Registry
       uses: docker/login-action@v1
       with:
-        registry: hub.docker.com
         username: derf
         password: ${{ secrets.DOCKER_PASSWORD }}
 
