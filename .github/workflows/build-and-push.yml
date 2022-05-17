@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build and push
 on: [ push ]
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
       id: generate-tags
       shell: bash
       run: |
-        if [[ $GITHUB_REF == 'refs/heads/master' ]]; then
+        if [[ $GITHUB_REF == 'refs/heads/main' ]]; then
           echo "##[set-output name=image_tags;] derf/k8s-simple-logs:latest, derf/k8s-simple-logs:${{ github.sha }}";
         else
           echo "##[set-output name=image_tags;] derf/k8s-simple-logs:${{ github.sha }}";
