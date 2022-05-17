@@ -23,6 +23,8 @@ func setupRouter() *gin.Engine {
   } else {
     gin.SetMode(gin.ReleaseMode)
   }
+  logkey := os.Getenv("LOGKEY")
+  fmt.Println("Logkey is: ", logkey)
   // k8s client setup
 	config, err := rest.InClusterConfig()
 	if err != nil {
