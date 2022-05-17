@@ -22,3 +22,4 @@ Add the service `logs` to your ingress like this:
                 port:
                   number: 8080
 ```
+make sure it's before any less specific rules.
