@@ -37,3 +37,10 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         file: Dockerfile
+
+    - name: Docker Hub Description
+      uses: peter-evans/dockerhub-description@v3
+      with:
+        username: derf
+        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+        repository: derf/k8s-simple-logs
