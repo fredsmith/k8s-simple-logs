@@ -6,7 +6,7 @@ This tool exposes all the logs from every pod in the current namespace over http
 
 ## Deploying
 ```
-  curl -L -O https://raw.githubusercontent.com/fredsmith/k8s-simple-logs/main/k8s-deployment.yaml > k8s-simple-logs.yaml
+  curl -L https://raw.githubusercontent.com/fredsmith/k8s-simple-logs/main/k8s-deployment.yaml > k8s-simple-logs.yaml
   kubectl apply -f k8s-simple-logs.yaml
 ```
 
