@@ -16,8 +16,13 @@ import (
 )
 
 func setupRouter() *gin.Engine {
-// Disable Console Color
-// gin.DisableConsoleColor()
+  // Disable Console Color
+  gin.DisableConsoleColor()
+  if os.Getenv("DEBUG") != "" {
+    gin.SetMode(gin.DebugMode)
+  } else {
+    gin.SetMode(gin.ReleaseMode)
+  }
   // k8s client setup
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -36,14 +41,25 @@ func setupRouter() *gin.Engine {
   if err != nil {
     panic(err)
   }
-  r := gin.Default()
-
+  r := gin.New()
+  r.Use(
+        gin.LoggerWithWriter(gin.DefaultWriter, "/healthcheck"),
+        gin.Recovery(),
+  )
   // Ping
   r.GET("/healthcheck", func(c *gin.Context) {
     c.String(http.StatusOK, "still alive")
   })
 
   r.GET("/logs", func(c *gin.Context) {
+    // check if there's a key in the environment, if so, make sure it's in the request
+    if os.Getenv("LOGKEY") != "" {
+      if os.Getenv("LOGKEY") != strings.Join(c.Request.URL.Query()["key"], " ") {
+        c.String(http.StatusForbidden, "Key Required")
+        c.Abort()
+      }
+    }
+
     var output = ""
     // get all pods in our namespace
     pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
