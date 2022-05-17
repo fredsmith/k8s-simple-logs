@@ -29,6 +29,10 @@ func setupRouter() *gin.Engine {
 		panic(err.Error())
 	}
 
+  namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+  if err != nil {
+    panic(err)
+  }
   r := gin.Default()
 
   // Ping
@@ -37,12 +41,27 @@ func setupRouter() *gin.Engine {
   })
 
   r.GET("/logs", func(c *gin.Context) {
-   // get the logs here 
-    if err != nil {
-      c.String(http.StatusServiceUnavailable, err)
-    } else {
-      c.String(http.StatusOK, response)
-    }
+    var output :=
+  // get all pods in our namespace
+  pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+  if err != nil {
+			panic(err.Error())
+	}
+
+  for i, podID := range pods {
+     // get the logs here 
+     req := clientset.RESTClient.Get().
+          Namespace(namespace).
+          Name(podID).
+          Resource("pods").
+          SubResource("log").
+          
+     req.param(tailLines, "40")
+
+     output += req.Stream()
+   }
+
+   c.String(http.StatusOK, output)
   })
 
   return r
