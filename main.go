@@ -72,13 +72,17 @@ func setupRouter() *gin.Engine {
       // get the logs here 
       req := clientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &podLogOpts)
       // 
-      output += fmt.Sprintf("%d, %s - %s:", i, namespace, pod.Name)
+      output += "\n\n\n-----------------------------\n"
+      output += fmt.Sprintf("ID: %d, \n Namespace: %s \n Pod: %s:\n", i, namespace, pod.Name)
+      output += "-----------------------------\n"
+
       logoutput, err := req.Stream(context.TODO())
       if err != nil {
           panic(err.Error())
       }
       io.Copy(buf,logoutput)
-      output += buf.String()
+      output += buf.String() 
+      output += "-----------------------------\n\n\n\n\n"
      }
 
      c.String(http.StatusOK, output)
