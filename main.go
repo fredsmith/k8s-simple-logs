@@ -59,6 +59,7 @@ func setupRouter() *gin.Engine {
       if os.Getenv("LOGKEY") != strings.Join(c.Request.URL.Query()["key"], " ") {
         c.String(http.StatusForbidden, "Key Required")
         c.Abort()
+        return r
       }
     }
 
