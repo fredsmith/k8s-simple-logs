@@ -37,8 +37,6 @@ func setupRouter() *gin.Engine {
   // get the namespace we're in.
   namespaceByte, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
   namespace := fmt.Sprintf("%s", namespaceByte)
-  // globally set pod logs options
-  podLogOpts := corev1.PodLogOptions{}
 
   if err != nil {
     panic(err)
@@ -64,6 +62,7 @@ func setupRouter() *gin.Engine {
     }
 
     var output = ""
+    var loglines = int64(20)
     // get all pods in our namespace
     pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
     if err != nil {
@@ -71,21 +70,32 @@ func setupRouter() *gin.Engine {
     }
 
     for i, pod := range pods.Items {
-      buf := new(strings.Builder)
-      // get the logs here 
-      req := clientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &podLogOpts)
-      // 
-      output += "\n\n\n-----------------------------\n"
-      output += fmt.Sprintf("ID: %d, \n Namespace: %s \n Pod: %s:\n", i, namespace, pod.Name)
-      output += "-----------------------------\n"
-
-      logoutput, err := req.Stream(context.TODO())
+      poddetails, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
       if err != nil {
           panic(err.Error())
       }
-      io.Copy(buf,logoutput)
-      output += buf.String() 
-      output += "-----------------------------\n\n\n\n\n"
+      for j, container := range poddetails.Spec.Containers {
+        podLogOpts := corev1.PodLogOptions{
+        Container: container.Name,
+        TailLines: &loglines,
+        }
+
+        buf := new(strings.Builder)
+        // get the logs here 
+        req := clientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &podLogOpts)
+        // 
+        output += "\n\n\n-----------------------------\n"
+        output += fmt.Sprintf("ID: %d %d, \n Namespace: %s \n Pod: %s:\n Container: %s\n", i, j, namespace, pod.Name, container.Name)
+        output += "-----------------------------\n"
+
+        logoutput, err := req.Stream(context.TODO())
+        if err != nil {
+            panic(err.Error())
+        }
+        io.Copy(buf,logoutput)
+        output += buf.String() 
+        output += "-----------------------------\n\n\n\n\n"
+      }
      }
 
      c.String(http.StatusOK, output)
