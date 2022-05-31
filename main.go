@@ -7,6 +7,7 @@ import (
   "context"
   "fmt"
   "strings"
+  "strconv"
   "io"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,6 +64,11 @@ func setupRouter() *gin.Engine {
 
     var output = ""
     var loglines = int64(20)
+    loglinesval, err := strconv.Atoi(strings.Join(c.Request.URL.Query()["lines"], " "))
+    if err == nil {
+      loglines = int64(loglinesval)
+    }
+
     // get all pods in our namespace
     pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
     if err != nil {
