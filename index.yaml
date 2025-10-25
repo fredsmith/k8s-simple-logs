@@ -2,8 +2,28 @@ apiVersion: v1
 entries:
   k8s-simple-logs:
   - apiVersion: v2
+    appVersion: 2025.10.3
+    created: "2025-10-25T07:29:34.364982657Z"
+    description: A simple Kubernetes log aggregation utility that exposes logs from
+      all pods in the namespace via HTTP
+    digest: 67f0876fef1f592a227ebd1a8ae922c455dbadb5fcaa8cee2470c374cd8bfb0e
+    home: https://github.com/fredsmith/k8s-simple-logs
+    keywords:
+    - logs
+    - kubernetes
+    - monitoring
+    maintainers:
+    - name: fredsmith
+    name: k8s-simple-logs
+    sources:
+    - https://github.com/fredsmith/k8s-simple-logs
+    type: application
+    urls:
+    - https://fredsmith.github.io/k8s-simple-logs/charts/k8s-simple-logs-2025.10.3.tgz
+    version: 2025.10.3
+  - apiVersion: v2
     appVersion: 2025.10.2
-    created: "2025-10-25T07:15:14.437285427Z"
+    created: "2025-10-25T07:29:34.364668392Z"
     description: A simple Kubernetes log aggregation utility that exposes logs from
       all pods in the namespace via HTTP
     digest: 006324af84b97eb4aba25b4e966e6a240a0f7cedc493f5202c259cf124a6670d
@@ -23,7 +43,7 @@ entries:
     version: 2025.10.2
   - apiVersion: v2
     appVersion: 2025.10.1
-    created: "2025-10-25T07:15:14.436947115Z"
+    created: "2025-10-25T07:29:34.364339729Z"
     description: A simple Kubernetes log aggregation utility that exposes logs from
       all pods in the namespace via HTTP
     digest: 0d7297d128b11eb53bca1eab61d5190a05bc4561fd99de9fe190b21f1f4ae9f2
@@ -43,7 +63,7 @@ entries:
     version: 2025.10.1
   - apiVersion: v2
     appVersion: 2025.10.0
-    created: "2025-10-25T07:15:14.436593223Z"
+    created: "2025-10-25T07:29:34.363949882Z"
     description: A simple Kubernetes log aggregation utility that exposes logs from
       all pods in the namespace via HTTP
     digest: 03cf982f48ded0ee5677232e69ff66cf63112972372b98536394de6c5a3bb6d3
@@ -81,4 +101,4 @@ entries:
     urls:
     - https://github.com/fredsmith/k8s-simple-logs/releases/download/k8s-simple-logs-0.1.0/k8s-simple-logs-0.1.0.tgz
     version: 0.1.0
-generated: "2025-10-25T07:15:14.436106113Z"
+generated: "2025-10-25T07:29:34.363462955Z"
