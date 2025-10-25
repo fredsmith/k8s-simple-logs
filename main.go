@@ -14,6 +14,7 @@ import (
   corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func setupRouter() *gin.Engine {
@@ -26,22 +27,44 @@ func setupRouter() *gin.Engine {
   }
   logkey := os.Getenv("LOGKEY")
   fmt.Println("Logkey is: ", logkey)
-  // k8s client setup
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		panic(err.Error())
-	}
-  clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
-  // get the namespace we're in.
-  namespaceByte, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-  namespace := fmt.Sprintf("%s", namespaceByte)
 
+  // k8s client setup - try in-cluster config first, fall back to kubeconfig
+  var config *rest.Config
+  var err error
+
+  config, err = rest.InClusterConfig()
   if err != nil {
-    panic(err)
+    // Not in cluster, try kubeconfig
+    loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+    configOverrides := &clientcmd.ConfigOverrides{}
+    kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+    config, err = kubeConfig.ClientConfig()
+    if err != nil {
+      panic(fmt.Sprintf("Failed to load kubernetes config: %v", err))
+    }
   }
+
+  clientset, err := kubernetes.NewForConfig(config)
+  if err != nil {
+    panic(err.Error())
+  }
+
+  // Get the namespace - try in-cluster first, fall back to kubeconfig namespace or "default"
+  var namespace string
+  namespaceByte, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+  if err == nil {
+    namespace = string(namespaceByte)
+  } else {
+    // Not in cluster, get namespace from kubeconfig or use default
+    loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+    configOverrides := &clientcmd.ConfigOverrides{}
+    kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+    namespace, _, err = kubeConfig.Namespace()
+    if err != nil || namespace == "" {
+      namespace = "default"
+    }
+  }
+  fmt.Println("Using namespace:", namespace)
   r := gin.New()
   r.Use(
         gin.LoggerWithWriter(gin.DefaultWriter, "/healthcheck"),

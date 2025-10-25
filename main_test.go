@@ -11,11 +11,6 @@ import (
 
 // TestHealthcheck tests the /healthcheck endpoint
 func TestHealthcheck(t *testing.T) {
-	// Skip if running in environment without k8s config
-	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); os.IsNotExist(err) {
-		t.Skip("Skipping test - not running in Kubernetes cluster")
-	}
-
 	router := setupRouter()
 
 	w := httptest.NewRecorder()
@@ -28,11 +23,6 @@ func TestHealthcheck(t *testing.T) {
 
 // TestLogsEndpointWithoutKey tests /logs endpoint when LOGKEY is not set
 func TestLogsEndpointWithoutKey(t *testing.T) {
-	// Skip if running in environment without k8s config
-	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); os.IsNotExist(err) {
-		t.Skip("Skipping test - not running in Kubernetes cluster")
-	}
-
 	// Ensure LOGKEY is not set
 	os.Unsetenv("LOGKEY")
 
@@ -48,11 +38,6 @@ func TestLogsEndpointWithoutKey(t *testing.T) {
 
 // TestLogsEndpointWithValidKey tests /logs endpoint with correct key
 func TestLogsEndpointWithValidKey(t *testing.T) {
-	// Skip if running in environment without k8s config
-	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); os.IsNotExist(err) {
-		t.Skip("Skipping test - not running in Kubernetes cluster")
-	}
-
 	// Set LOGKEY
 	os.Setenv("LOGKEY", "testkey123")
 	defer os.Unsetenv("LOGKEY")
@@ -68,11 +53,6 @@ func TestLogsEndpointWithValidKey(t *testing.T) {
 
 // TestLogsEndpointWithInvalidKey tests /logs endpoint with incorrect key
 func TestLogsEndpointWithInvalidKey(t *testing.T) {
-	// Skip if running in environment without k8s config
-	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); os.IsNotExist(err) {
-		t.Skip("Skipping test - not running in Kubernetes cluster")
-	}
-
 	// Set LOGKEY
 	os.Setenv("LOGKEY", "correctkey")
 	defer os.Unsetenv("LOGKEY")
@@ -89,11 +69,6 @@ func TestLogsEndpointWithInvalidKey(t *testing.T) {
 
 // TestLogsEndpointWithMissingKey tests /logs endpoint when key is required but missing
 func TestLogsEndpointWithMissingKey(t *testing.T) {
-	// Skip if running in environment without k8s config
-	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); os.IsNotExist(err) {
-		t.Skip("Skipping test - not running in Kubernetes cluster")
-	}
-
 	// Set LOGKEY
 	os.Setenv("LOGKEY", "requiredkey")
 	defer os.Unsetenv("LOGKEY")
@@ -110,11 +85,6 @@ func TestLogsEndpointWithMissingKey(t *testing.T) {
 
 // TestLogsEndpointWithCustomLines tests /logs endpoint with custom lines parameter
 func TestLogsEndpointWithCustomLines(t *testing.T) {
-	// Skip if running in environment without k8s config
-	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); os.IsNotExist(err) {
-		t.Skip("Skipping test - not running in Kubernetes cluster")
-	}
-
 	os.Unsetenv("LOGKEY")
 
 	router := setupRouter()
@@ -129,11 +99,6 @@ func TestLogsEndpointWithCustomLines(t *testing.T) {
 
 // TestLogsEndpointWithInvalidLinesParameter tests /logs with non-numeric lines param
 func TestLogsEndpointWithInvalidLinesParameter(t *testing.T) {
-	// Skip if running in environment without k8s config
-	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); os.IsNotExist(err) {
-		t.Skip("Skipping test - not running in Kubernetes cluster")
-	}
-
 	os.Unsetenv("LOGKEY")
 
 	router := setupRouter()

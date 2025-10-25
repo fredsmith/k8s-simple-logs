@@ -37,11 +37,6 @@ jobs:
     - name: Build application
       run: go build -o k8s-simple-logs
 
-    - name: Create namespace file for tests
-      run: |
-        sudo mkdir -p /var/run/secrets/kubernetes.io/serviceaccount
-        echo -n "default" | sudo tee /var/run/secrets/kubernetes.io/serviceaccount/namespace
-
     - name: Set up RBAC permissions
       run: |
         kubectl create serviceaccount test-sa || true

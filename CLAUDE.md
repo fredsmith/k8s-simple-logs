@@ -49,11 +49,11 @@ This is a monolithic Go application contained entirely in [main.go](main.go). Al
 - `setupRouter()`: Initializes the Gin HTTP server, Kubernetes client, and defines endpoints
 - `main()`: Entry point that calls setupRouter and starts the server
 
-### In-Cluster Execution Model
-The application runs inside a Kubernetes cluster and:
-1. Uses `rest.InClusterConfig()` to authenticate with the K8s API
-2. Reads its own namespace from `/var/run/secrets/kubernetes.io/serviceaccount/namespace`
-3. Requires RBAC permissions (Role + RoleBinding) to list pods and read pod logs
+### Kubernetes Client Configuration
+The application supports both in-cluster and local execution ([main.go:31-67](main.go#L31-L67)):
+1. **In-cluster mode** (production): Uses `rest.InClusterConfig()` and reads namespace from `/var/run/secrets/kubernetes.io/serviceaccount/namespace`
+2. **Kubeconfig mode** (development/testing): Falls back to `~/.kube/config` if not in-cluster
+3. Requires RBAC permissions (Role + RoleBinding) to list pods and read pod logs in both modes
 
 ### Request Flow
 When `/logs` is accessed:
@@ -89,7 +89,7 @@ Unit tests are in [main_test.go](main_test.go) and use the testify/assert librar
 - Query parameter parsing (key, lines)
 - Invalid parameter handling
 
-Note: Tests require running inside a Kubernetes cluster (they check for `/var/run/secrets/kubernetes.io/serviceaccount/namespace`) and will be skipped in local development environments.
+Tests work with any valid Kubernetes configuration (kubeconfig or in-cluster) and will automatically use the appropriate authentication method.
 
 ## CI/CD
 
