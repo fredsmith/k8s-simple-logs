@@ -95,11 +95,22 @@ Note: The YAML file no longer hardcodes namespaces, so resources will be created
 
 ## Architecture
 
-### Single-File Application
-This is a monolithic Go application contained entirely in [main.go](main.go). All functionality lives in one file with two main functions:
+### Application Structure
 
-- `setupRouter()`: Initializes the Gin HTTP server, Kubernetes client, and defines endpoints
-- `main()`: Entry point that calls setupRouter and starts the server
+The application consists of two main Go files:
+
+- **[main.go](main.go)** - Core application logic:
+  - `setupRouter()`: Initializes Gin HTTP server, Kubernetes client, and defines all endpoints
+  - `main()`: Entry point that calls setupRouter and starts the server
+  - API endpoints for container listing, log retrieval, and WebSocket streaming
+  - Authentication middleware
+  - Legacy `/logs` endpoint for backward compatibility
+
+- **[ui.go](ui.go)** - Frontend web interface:
+  - `getHTMLUI()`: Returns embedded HTML/CSS/JavaScript for the modern web UI
+  - Tailwind CSS-based responsive design
+  - WebSocket client for real-time log streaming
+  - Container search and selection functionality
 
 ### Kubernetes Client Configuration
 The application supports both in-cluster and local execution ([main.go:31-67](main.go#L31-L67)):
@@ -107,21 +118,43 @@ The application supports both in-cluster and local execution ([main.go:31-67](ma
 2. **Kubeconfig mode** (development/testing): Falls back to `~/.kube/config` if not in-cluster
 3. Requires RBAC permissions (Role + RoleBinding) to list pods and read pod logs in both modes
 
-### Request Flow
-When `/logs` is accessed:
-1. Optional LOGKEY authentication check (via `?key=` query parameter)
-2. Parse `?lines=` parameter (default: 20 lines per container)
-3. List all pods in the namespace using K8s client
-4. For each pod, iterate through all containers
-5. Stream logs from each container via `GetLogs()` API
-6. Concatenate all logs with headers showing pod/container metadata
-7. Return as plain text response
+### API Endpoints
 
-### Multi-Container Pod Handling
-The nested loop structure ([main.go:78-105](main.go#L78-L105)) is critical:
-- Outer loop iterates pods
-- Inner loop iterates containers within each pod
-- Each container's logs are fetched independently and labeled with ID numbers
+The application exposes several endpoints:
+
+1. **`GET /`** - Modern web UI (Tailwind CSS + WebSocket)
+   - Displays interactive dashboard for container selection
+   - Lists all pods/containers in sidebar
+   - Streams logs in real-time via WebSocket
+
+2. **`GET /api/containers`** - List all pods and containers
+   - Returns JSON array of `{podName, containerName, namespace, id}`
+   - Used by web UI to populate sidebar
+
+3. **`GET /api/logs/:pod/:container`** - Fetch logs for specific container
+   - Query param `lines=N` controls tail lines (default: 100)
+   - Returns JSON: `{pod, container, logs}`
+
+4. **`WS /ws/logs/:pod/:container`** - WebSocket for real-time log streaming
+   - Streams logs line-by-line as JSON: `{timestamp, log}`
+   - Uses K8s `Follow: true` option for continuous streaming
+   - Automatically closes on client disconnect
+
+5. **`GET /logs`** - Legacy plaintext endpoint (backward compatible)
+   - Returns all logs from all containers as concatenated text
+   - Query param `lines=N` (default: 20)
+
+6. **`GET /version`** - Application version and namespace info
+
+7. **`GET /healthcheck`** - Health probe endpoint
+
+### Authentication
+
+Authentication is optional via the `LOGKEY` environment variable:
+- If set, all API endpoints require authentication
+- Supports query parameter: `?key=VALUE`
+- Supports HTTP header: `X-API-Key: VALUE`
+- WebSocket authentication via query parameter only
 
 ## Configuration
 
