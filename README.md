@@ -87,21 +87,24 @@ Make sure it's before any less specific rules.
 ### Via Port Forward
 
 ```bash
-# For Helm installations
-kubectl port-forward svc/k8s-simple-logs 8080:8080
 
-# For Kustomize/YAML installations
 kubectl port-forward svc/k8s-simple-logs 8080:8080
 
 # Then access at http://localhost:8080/logs
 ```
 
-### Query Parameters
+### Endpoints
 
-- `lines=N`: Number of log lines to fetch per container (default: 20)
-- `key=<value>`: Authentication key (required if LOGKEY is set)
+- **`GET /logs`** - Retrieve logs from all pods
+  - `lines=N`: Number of log lines to fetch per container (default: 20)
+  - `key=<value>`: Authentication key (required if LOGKEY is set)
+  - Example: `http://localhost:8080/logs?lines=50&key=mysecret`
 
-Example: `http://localhost:8080/logs?lines=50&key=mysecret`
+- **`GET /version`** - Check application version and namespace
+  - Returns JSON: `{"version":"2025.1.0","namespace":"default"}`
+
+- **`GET /healthcheck`** - Health check endpoint
+  - Returns: `still alive`
 
 ## Development
 
@@ -118,33 +121,13 @@ go test -v -cover
 go test -v -run TestHealthcheck
 ```
 
-### Linting Helm Charts
-
-The project includes automated linting for Helm charts:
-
-```bash
-# Lint the Helm chart structure
-helm lint helm/k8s-simple-logs
-
-# Template the chart and validate with kube-linter
-helm template test helm/k8s-simple-logs | kube-linter lint - --config .kube-linter.yaml
-
-# Test with custom values
-helm template test helm/k8s-simple-logs \
-  --set logkey=test \
-  --set service.type=NodePort | kube-linter lint - --config .kube-linter.yaml
-```
-
 ### CI/CD
 
 The project uses GitHub Actions for automated testing and validation:
 
 - **[Test Workflow](.github/workflows/test.yml)** - Runs Go tests in a kind cluster
 - **[Lint Workflow](.github/workflows/lint-helm-chart.yml)** - Validates Helm charts with kube-linter
-- **[Release Workflow](.github/workflows/release-helm-chart.yml)** - Publishes charts to GitHub Pages
+- **[Release Workflow](.github/workflows/release.yml)** - Releases Versioned docker image and publishes Helm Chart
 
 See [CLAUDE.md](CLAUDE.md) for detailed CI/CD documentation.
 
-## Contributing
-
-For maintainers: See [HELM_REPO_SETUP.md](HELM_REPO_SETUP.md) for information on maintaining the Helm repository.

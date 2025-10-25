@@ -17,6 +17,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// Version is set at build time via -ldflags
+var Version = "dev"
+
 func setupRouter() *gin.Engine {
   // Disable Console Color
   gin.DisableConsoleColor()
@@ -70,9 +73,17 @@ func setupRouter() *gin.Engine {
         gin.LoggerWithWriter(gin.DefaultWriter, "/healthcheck"),
         gin.Recovery(),
   )
-  // Ping
+  // Health check
   r.GET("/healthcheck", func(c *gin.Context) {
     c.String(http.StatusOK, "still alive")
+  })
+
+  // Version endpoint
+  r.GET("/version", func(c *gin.Context) {
+    c.JSON(http.StatusOK, gin.H{
+      "version": Version,
+      "namespace": namespace,
+    })
   })
 
   r.GET("/logs", func(c *gin.Context) {
@@ -134,6 +145,7 @@ func setupRouter() *gin.Engine {
 }
 
 func main() {
+  fmt.Printf("k8s-simple-logs version %s\n", Version)
   r := setupRouter()
   // Listen and Server in 0.0.0.0:8080
   r.Run(":8080")
