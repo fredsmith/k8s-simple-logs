@@ -87,7 +87,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             docker.io/derf/k8s-simple-logs:${{ steps.version.outputs.version }}
@@ -154,8 +154,11 @@ jobs:
           mkdir -p charts
           curl -L -o "charts/k8s-simple-logs-${VERSION}.tgz" "$CHART_URL" || echo "Chart not yet in release, will be added in next run"
 
-          # Generate/update index.yaml
-          helm repo index . --url https://fredsmith.github.io/k8s-simple-logs --merge index.yaml || helm repo index . --url https://fredsmith.github.io/k8s-simple-logs
+          # Generate/update index.yaml pointing to charts/ subdirectory
+          helm repo index charts --url https://fredsmith.github.io/k8s-simple-logs/charts --merge index.yaml || helm repo index charts --url https://fredsmith.github.io/k8s-simple-logs/charts
+
+          # Move index.yaml to root for GitHub Pages
+          mv charts/index.yaml . || echo "Index already in root"
 
           # Commit and push index
           git add index.yaml charts/ || true
