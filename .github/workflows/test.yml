@@ -59,15 +59,92 @@ jobs:
         kubectl get pods
 
     - name: Run tests
-      run: go test -v -race -coverprofile=coverage.out -covermode=atomic
+      run: |
+        set -o pipefail
+        go test -v -race -coverprofile=coverage.out -covermode=atomic 2>&1 | tee test-output.txt
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        files: ./coverage.out
-        fail_ci_if_error: false
-        verbose: true
-      continue-on-error: true
+    - name: Generate test and coverage report
+      if: always()
+      run: |
+        echo "# Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Parse test results
+        TOTAL_TESTS=$(grep -c "=== RUN" test-output.txt || echo "0")
+        PASSED_TESTS=$(grep -c "--- PASS:" test-output.txt || echo "0")
+        FAILED_TESTS=$(grep -c "--- FAIL:" test-output.txt || echo "0")
+        SKIPPED_TESTS=$(grep -c "--- SKIP:" test-output.txt || echo "0")
+
+        # Display test summary with emojis
+        echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| ✅ Passed | $PASSED_TESTS |" >> $GITHUB_STEP_SUMMARY
+        echo "| ❌ Failed | $FAILED_TESTS |" >> $GITHUB_STEP_SUMMARY
+        echo "| ⏭️ Skipped | $SKIPPED_TESTS |" >> $GITHUB_STEP_SUMMARY
+        echo "| 📊 Total | $TOTAL_TESTS |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # List individual test results
+        echo "### Test Details" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Test | Result | Duration |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+
+        grep -E "^(--- PASS:|--- FAIL:|--- SKIP:)" test-output.txt | while read -r line; do
+          STATUS=$(echo "$line" | awk '{print $2}')
+          TEST=$(echo "$line" | awk '{print $3}')
+          DURATION=$(echo "$line" | awk '{print $4}' | tr -d '()')
+
+          case $STATUS in
+            "PASS:")
+              ICON="✅"
+              ;;
+            "FAIL:")
+              ICON="❌"
+              ;;
+            "SKIP:")
+              ICON="⏭️"
+              ;;
+            *)
+              ICON="❓"
+              ;;
+          esac
+
+          echo "| $TEST | $ICON $STATUS | $DURATION |" >> $GITHUB_STEP_SUMMARY
+        done
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Coverage report
+        if [ -f coverage.out ]; then
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get overall coverage percentage
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+          echo "**Overall Coverage: $COVERAGE**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Create a detailed table
+          echo "### Coverage by Function" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Function | Coverage |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+
+          # Parse coverage output into table format
+          go tool cover -func=coverage.out | grep -v "total:" | while read -r line; do
+            FILE=$(echo "$line" | awk -F: '{print $1}' | xargs basename)
+            FUNC=$(echo "$line" | awk -F: '{print $2}' | awk '{print $1}')
+            COV=$(echo "$line" | awk '{print $NF}')
+            echo "| $FILE | $FUNC | $COV |" >> $GITHUB_STEP_SUMMARY
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
 
     - name: Display logs on failure
       if: failure()
