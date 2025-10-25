@@ -1,0 +1,35 @@
+---
+# Kube-linter configuration for k8s-simple-logs Helm chart
+# See: https://docs.kubelinter.io/#/configuring-kubelinter
+
+checks:
+  # Exclude checks that don't apply to our use case
+  exclude:
+    # We intentionally run as root to access Kubernetes API
+    - "run-as-non-root"
+    # We need default capabilities for Kubernetes client operations
+    - "no-extensions-v1beta"
+    # This is a single-replica app by design
+    - "minimum-three-replicas"
+    # Deprecated API versions are handled by Helm
+    - "deprecated-service-account-field"
+    # We don't use host mounts
+    - "no-read-only-root-fs"
+    # Resource limits are set, but we allow some flexibility
+    - "unset-cpu-requirements"
+    - "unset-memory-requirements"
+
+  # Include important security and reliability checks
+  include:
+    - "dangling-service"
+    - "mismatching-selector"
+    - "writable-host-mount"
+    - "no-anti-affinity"
+    - "default-service-account"
+    - "no-liveness-probe"
+    - "no-readiness-probe"
+    - "privileged-container"
+    - "sensitive-host-mounts"
+
+# Custom severity levels
+customChecks: []

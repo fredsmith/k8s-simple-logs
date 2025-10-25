@@ -102,3 +102,49 @@ kubectl port-forward svc/k8s-simple-logs 8080:8080
 - `key=<value>`: Authentication key (required if LOGKEY is set)
 
 Example: `http://localhost:8080/logs?lines=50&key=mysecret`
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests (requires Kubernetes cluster or kubeconfig)
+go test -v
+
+# Run tests with coverage
+go test -v -cover
+
+# Run a specific test
+go test -v -run TestHealthcheck
+```
+
+### Linting Helm Charts
+
+The project includes automated linting for Helm charts:
+
+```bash
+# Lint the Helm chart structure
+helm lint helm/k8s-simple-logs
+
+# Template the chart and validate with kube-linter
+helm template test helm/k8s-simple-logs | kube-linter lint - --config .kube-linter.yaml
+
+# Test with custom values
+helm template test helm/k8s-simple-logs \
+  --set logkey=test \
+  --set service.type=NodePort | kube-linter lint - --config .kube-linter.yaml
+```
+
+### CI/CD
+
+The project uses GitHub Actions for automated testing and validation:
+
+- **[Test Workflow](.github/workflows/test.yml)** - Runs Go tests in a kind cluster
+- **[Lint Workflow](.github/workflows/lint-helm-chart.yml)** - Validates Helm charts with kube-linter
+- **[Release Workflow](.github/workflows/release-helm-chart.yml)** - Publishes charts to GitHub Pages
+
+See [CLAUDE.md](CLAUDE.md) for detailed CI/CD documentation.
+
+## Contributing
+
+For maintainers: See [HELM_REPO_SETUP.md](HELM_REPO_SETUP.md) for information on maintaining the Helm repository.

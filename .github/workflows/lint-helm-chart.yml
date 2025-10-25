@@ -1,0 +1,161 @@
+name: Lint Helm Chart
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'helm/**'
+      - '.github/workflows/lint-helm-chart.yml'
+      - '.kube-linter.yaml'
+  pull_request:
+    paths:
+      - 'helm/**'
+      - '.github/workflows/lint-helm-chart.yml'
+      - '.kube-linter.yaml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Helm Lint
+        run: |
+          echo "## Helm Lint Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if helm lint helm/k8s-simple-logs; then
+            echo "✅ Helm chart passed lint checks" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Helm chart failed lint checks" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Template Helm Chart (default values)
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Helm Template Output" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Generating manifests with default values..." >> $GITHUB_STEP_SUMMARY
+
+          helm template test-release helm/k8s-simple-logs \
+            --namespace test-namespace \
+            > /tmp/helm-output-default.yaml
+
+          echo "✅ Successfully templated chart with default values" >> $GITHUB_STEP_SUMMARY
+
+      - name: Template Helm Chart (with custom values)
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Generating manifests with custom values (logkey, NodePort)..." >> $GITHUB_STEP_SUMMARY
+
+          helm template test-release helm/k8s-simple-logs \
+            --namespace test-namespace \
+            --set logkey=test-secret \
+            --set service.type=NodePort \
+            --set debug=true \
+            > /tmp/helm-output-custom.yaml
+
+          echo "✅ Successfully templated chart with custom values" >> $GITHUB_STEP_SUMMARY
+
+      - name: Install kube-linter
+        run: |
+          wget https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz
+          tar -xzf kube-linter-linux.tar.gz
+          sudo mv kube-linter /usr/local/bin/
+          kube-linter version
+
+      - name: Run kube-linter (default values)
+        id: kubelint_default
+        continue-on-error: true
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Kube-linter Results (Default Values)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if kube-linter lint /tmp/helm-output-default.yaml --config .kube-linter.yaml 2>&1 | tee /tmp/kubelint-default.txt; then
+            echo "✅ No issues found with default values" >> $GITHUB_STEP_SUMMARY
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Issues found with default values:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat /tmp/kubelint-default.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run kube-linter (custom values)
+        id: kubelint_custom
+        continue-on-error: true
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Kube-linter Results (Custom Values)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if kube-linter lint /tmp/helm-output-custom.yaml --config .kube-linter.yaml 2>&1 | tee /tmp/kubelint-custom.txt; then
+            echo "✅ No issues found with custom values" >> $GITHUB_STEP_SUMMARY
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Issues found with custom values:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat /tmp/kubelint-custom.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload templated manifests as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-templated-manifests
+          path: |
+            /tmp/helm-output-default.yaml
+            /tmp/helm-output-custom.yaml
+            /tmp/kubelint-default.txt
+            /tmp/kubelint-custom.txt
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Overall Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          DEFAULT_STATUS="${{ steps.kubelint_default.outputs.status }}"
+          CUSTOM_STATUS="${{ steps.kubelint_custom.outputs.status }}"
+
+          echo "| Configuration | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$DEFAULT_STATUS" = "success" ]; then
+            echo "| Default Values | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Default Values | ⚠️ Issues Found |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$CUSTOM_STATUS" = "success" ]; then
+            echo "| Custom Values | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Custom Values | ⚠️ Issues Found |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Templated manifests and lint reports have been uploaded as workflow artifacts." >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if regressions detected
+        if: steps.kubelint_default.outputs.status == 'failed' || steps.kubelint_custom.outputs.status == 'failed'
+        run: |
+          echo "::error::Kube-linter found issues in the Helm chart. Check the workflow summary for details."
+          exit 1

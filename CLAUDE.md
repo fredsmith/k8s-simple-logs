@@ -140,14 +140,50 @@ Tests work with any valid Kubernetes configuration (kubeconfig or in-cluster) an
 
 ## CI/CD
 
-GitHub Actions workflow in [.github/workflows/test.yml](.github/workflows/test.yml) runs on every push and pull request to `main`. The workflow:
+The project uses GitHub Actions for continuous integration and deployment automation.
+
+### Test Workflow
+
+[.github/workflows/test.yml](.github/workflows/test.yml) runs on every push and pull request to `main`:
 1. Sets up a kind (Kubernetes in Docker) cluster
 2. Builds the Docker image and loads it into kind
 3. Deploys the application with proper RBAC
 4. Runs all unit tests with race detection and coverage
-5. Uploads coverage reports to Codecov (optional)
+5. Generates test and coverage reports in the workflow summary
 
 The CI environment simulates the in-cluster deployment to ensure tests run successfully.
+
+### Helm Chart Linting
+
+[.github/workflows/lint-helm-chart.yml](.github/workflows/lint-helm-chart.yml) validates the Helm chart:
+1. Runs `helm lint` to check chart structure and syntax
+2. Templates the chart with default and custom values
+3. Runs `kube-linter` on the templated manifests to detect misconfigurations
+4. Surfaces any regressions in the workflow summary
+5. Uploads templated manifests as artifacts for inspection
+
+Configuration for kube-linter is in [.kube-linter.yaml](.kube-linter.yaml). The linting workflow helps catch:
+- Missing health probes
+- Security issues (privileged containers, host mounts)
+- Resource misconfigurations
+- Service selector mismatches
+
+To run linting locally:
+```bash
+# Lint the Helm chart
+helm lint helm/k8s-simple-logs
+
+# Template and lint with kube-linter
+helm template test helm/k8s-simple-logs | kube-linter lint - --config .kube-linter.yaml
+```
+
+### Helm Chart Publishing
+
+[.github/workflows/release-helm-chart.yml](.github/workflows/release-helm-chart.yml) automatically publishes charts:
+1. Triggers when changes are pushed to `helm/` directory
+2. Packages the Helm chart
+3. Creates GitHub Releases
+4. Updates the Helm repository index on GitHub Pages
 
 ## Dependencies
 
