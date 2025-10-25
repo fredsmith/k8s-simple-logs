@@ -5,7 +5,8 @@ replicaCount: 1
 image:
   repository: docker.io/derf/k8s-simple-logs
   pullPolicy: IfNotPresent
-  tag: "2025.1.0"
+  # Defaults to appVersion from Chart.yaml if not specified
+  tag: ""
 
 imagePullSecrets: []
 nameOverride: ""
