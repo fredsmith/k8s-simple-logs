@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+resources:
+- ../../base
+
+# Uncomment and modify to add authentication
+# configMapGenerator:
+# - name: k8s-simple-logs-config
+#   literals:
+#   - LOGKEY=your-secret-key-here
+
+# Uncomment to inject the LOGKEY from the configMap
+# patchesStrategicMerge:
+# - |-
+#   apiVersion: apps/v1
+#   kind: Deployment
+#   metadata:
+#     name: k8s-simple-logs
+#   spec:
+#     template:
+#       spec:
+#         containers:
+#         - name: k8s-simple-logs
+#           envFrom:
+#           - configMapRef:
+#               name: k8s-simple-logs-config
