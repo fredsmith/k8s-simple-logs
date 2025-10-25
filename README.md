@@ -11,16 +11,21 @@ Choose one of the following installation methods:
 ### Option 1: Helm (Recommended)
 
 ```bash
-# Install directly from the repository
-helm install k8s-simple-logs ./helm/k8s-simple-logs
+# Add the Helm repository
+helm repo add k8s-simple-logs https://fredsmith.github.io/k8s-simple-logs
 
-# Or with custom values
-helm install k8s-simple-logs ./helm/k8s-simple-logs \
-  --set logkey=your-secret-key \
-  --set service.type=NodePort
+# Update your local Helm chart repository cache
+helm repo update
 
-# Install to a specific namespace
-helm install k8s-simple-logs ./helm/k8s-simple-logs -n my-namespace --create-namespace
+# Install the chart
+helm install my-release k8s-simple-logs/k8s-simple-logs
+
+# Install with custom values
+helm install my-release k8s-simple-logs/k8s-simple-logs \
+  --set logkey=mysecret \
+  --set service.type=NodePort \
+  -n my-namespace
+
 ```
 
 ### Option 2: Kustomize
