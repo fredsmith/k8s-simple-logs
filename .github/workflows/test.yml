@@ -1,0 +1,86 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.18'
+
+    - name: Create kind cluster
+      uses: helm/kind-action@v1
+      with:
+        cluster_name: test-cluster
+        wait: 30s
+
+    - name: Verify cluster is running
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Build application
+      run: go build -o k8s-simple-logs
+
+    - name: Create namespace file for tests
+      run: |
+        sudo mkdir -p /var/run/secrets/kubernetes.io/serviceaccount
+        echo -n "default" | sudo tee /var/run/secrets/kubernetes.io/serviceaccount/namespace
+
+    - name: Set up RBAC permissions
+      run: |
+        kubectl create serviceaccount test-sa || true
+        kubectl create role viewlogs --verb=get,list --resource=pods,pods/log || true
+        kubectl create rolebinding test-viewlogs --role=viewlogs --serviceaccount=default:test-sa || true
+
+    - name: Build and load Docker image
+      run: |
+        docker build -t k8s-simple-logs:test .
+        kind load docker-image k8s-simple-logs:test --name test-cluster
+
+    - name: Deploy to kind cluster
+      run: |
+        # Create modified deployment for testing
+        sed 's|docker.io/derf/k8s-simple-logs:latest|k8s-simple-logs:test|g' k8s-deployment.yaml > k8s-deployment-test.yaml
+        sed -i 's|imagePullPolicy: Always|imagePullPolicy: IfNotPresent|g' k8s-deployment-test.yaml
+        kubectl apply -f k8s-deployment-test.yaml
+
+    - name: Wait for deployment to be ready
+      run: |
+        kubectl wait --for=condition=available --timeout=60s deployment/k8s-simple-logs
+        kubectl get pods
+
+    - name: Run tests
+      run: go test -v -race -coverprofile=coverage.out -covermode=atomic
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.out
+        fail_ci_if_error: false
+        verbose: true
+      continue-on-error: true
+
+    - name: Display logs on failure
+      if: failure()
+      run: |
+        echo "=== Deployment status ==="
+        kubectl get deployments
+        echo "=== Pods ==="
+        kubectl get pods
+        echo "=== Pod logs ==="
+        kubectl logs -l name=k8s-simple-logs --tail=100 || true
