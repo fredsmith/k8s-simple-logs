@@ -4,6 +4,9 @@ A simple log viewer for kubernetes hosted applications.
 
 This tool exposes all the logs from every pod in the current namespace over http.
 
+![Web UI Screenshot](docs/screenshot.png)
+*Modern web interface with real-time log streaming*
+
 ## Installation
 
 Choose one of the following installation methods:
