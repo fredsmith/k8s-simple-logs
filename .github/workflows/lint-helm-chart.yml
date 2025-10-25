@@ -80,7 +80,12 @@ jobs:
           echo "## Kube-linter Results (Default Values)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if kube-linter lint /tmp/helm-output-default.yaml --config .kube-linter.yaml 2>&1 | tee /tmp/kubelint-default.txt; then
+          set +e
+          kube-linter lint /tmp/helm-output-default.yaml --config .kube-linter.yaml > /tmp/kubelint-default.txt 2>&1
+          LINT_EXIT_CODE=$?
+          set -e
+
+          if [ $LINT_EXIT_CODE -eq 0 ]; then
             echo "✅ No issues found with default values" >> $GITHUB_STEP_SUMMARY
             echo "status=success" >> $GITHUB_OUTPUT
           else
@@ -88,6 +93,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             cat /tmp/kubelint-default.txt >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "status=failed" >> $GITHUB_OUTPUT
           fi
@@ -100,7 +106,12 @@ jobs:
           echo "## Kube-linter Results (Custom Values)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if kube-linter lint /tmp/helm-output-custom.yaml --config .kube-linter.yaml 2>&1 | tee /tmp/kubelint-custom.txt; then
+          set +e
+          kube-linter lint /tmp/helm-output-custom.yaml --config .kube-linter.yaml > /tmp/kubelint-custom.txt 2>&1
+          LINT_EXIT_CODE=$?
+          set -e
+
+          if [ $LINT_EXIT_CODE -eq 0 ]; then
             echo "✅ No issues found with custom values" >> $GITHUB_STEP_SUMMARY
             echo "status=success" >> $GITHUB_OUTPUT
           else
@@ -108,6 +119,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             cat /tmp/kubelint-custom.txt >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "status=failed" >> $GITHUB_OUTPUT
           fi

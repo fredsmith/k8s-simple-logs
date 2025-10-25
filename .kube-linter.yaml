@@ -18,6 +18,8 @@ checks:
     # Resource limits are set, but we allow some flexibility
     - "unset-cpu-requirements"
     - "unset-memory-requirements"
+    # We use 'latest' as the default tag, users can override with specific versions
+    - "latest-tag"
 
   # Include important security and reliability checks
   include:
