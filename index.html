@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>k8s-simple-logs Helm Repository</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>k8s-simple-logs Helm Repository</h1>
+    <p>A simple Kubernetes log aggregation utility that exposes logs from all pods in the namespace via HTTP.</p>
+
+    <h2>Installation</h2>
+    <pre><code># Add the Helm repository
+helm repo add k8s-simple-logs https://fredsmith.github.io/k8s-simple-logs
+
+# Update your local Helm chart repository cache
+helm repo update
+
+# Install the chart
+helm install my-release k8s-simple-logs/k8s-simple-logs
+
+# Install with custom values
+helm install my-release k8s-simple-logs/k8s-simple-logs \
+  --set logkey=mysecret \
+  --set service.type=NodePort \
+  -n my-namespace --create-namespace</code></pre>
+
+    <h2>Available Charts</h2>
+    <ul>
+        <li><a href="https://github.com/fredsmith/k8s-simple-logs/tree/main/helm/k8s-simple-logs">k8s-simple-logs</a></li>
+    </ul>
+
+    <h2>Resources</h2>
+    <ul>
+        <li><a href="https://github.com/fredsmith/k8s-simple-logs">GitHub Repository</a></li>
+        <li><a href="index.yaml">Helm Repository Index</a></li>
+    </ul>
+</body>
+</html>
