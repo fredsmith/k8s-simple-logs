@@ -1,0 +1,157 @@
+name: Run Tests
+
+on:
+  push:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.18'
+
+    - name: Create kind cluster
+      uses: helm/kind-action@v1
+      with:
+        cluster_name: test-cluster
+        wait: 30s
+
+    - name: Verify cluster is running
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Build application
+      run: go build -o k8s-simple-logs
+
+    - name: Set up RBAC permissions
+      run: |
+        kubectl create serviceaccount test-sa || true
+        kubectl create role viewlogs --verb=get,list --resource=pods,pods/log || true
+        kubectl create rolebinding test-viewlogs --role=viewlogs --serviceaccount=default:test-sa || true
+
+    - name: Build and load Docker image
+      run: |
+        docker build -t k8s-simple-logs:test .
+        kind load docker-image k8s-simple-logs:test --name test-cluster
+
+    - name: Deploy to kind cluster
+      run: |
+        # Use local test image instead of pulling from Docker Hub
+        sed 's|docker.io/derf/k8s-simple-logs:latest|k8s-simple-logs:test|g' k8s-deployment.yaml | kubectl apply -f -
+
+    - name: Wait for deployment to be ready
+      run: |
+        kubectl wait --for=condition=available --timeout=60s deployment/k8s-simple-logs
+        kubectl get pods
+
+    - name: Run tests
+      run: |
+        set -o pipefail
+        go test -v -race -coverprofile=coverage.out -covermode=atomic 2>&1 | tee test-output.txt
+
+    - name: Generate test and coverage report
+      if: always()
+      run: |
+        echo "# Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Parse test results
+        TOTAL_TESTS=$(grep -c "=== RUN" test-output.txt || echo "0")
+        PASSED_TESTS=$(grep -c "--- PASS:" test-output.txt || echo "0")
+        FAILED_TESTS=$(grep -c "--- FAIL:" test-output.txt || echo "0")
+        SKIPPED_TESTS=$(grep -c "--- SKIP:" test-output.txt || echo "0")
+
+        # Display test summary with emojis
+        echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| ✅ Passed | $PASSED_TESTS |" >> $GITHUB_STEP_SUMMARY
+        echo "| ❌ Failed | $FAILED_TESTS |" >> $GITHUB_STEP_SUMMARY
+        echo "| ⏭️ Skipped | $SKIPPED_TESTS |" >> $GITHUB_STEP_SUMMARY
+        echo "| 📊 Total | $TOTAL_TESTS |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # List individual test results
+        echo "### Test Details" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Test | Result | Duration |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+
+        grep -E "^(--- PASS:|--- FAIL:|--- SKIP:)" test-output.txt | while read -r line; do
+          STATUS=$(echo "$line" | awk '{print $2}')
+          TEST=$(echo "$line" | awk '{print $3}')
+          DURATION=$(echo "$line" | awk '{print $4}' | tr -d '()')
+
+          case $STATUS in
+            "PASS:")
+              ICON="✅"
+              ;;
+            "FAIL:")
+              ICON="❌"
+              ;;
+            "SKIP:")
+              ICON="⏭️"
+              ;;
+            *)
+              ICON="❓"
+              ;;
+          esac
+
+          echo "| $TEST | $ICON $STATUS | $DURATION |" >> $GITHUB_STEP_SUMMARY
+        done
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Coverage report
+        if [ -f coverage.out ]; then
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get overall coverage percentage
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+          echo "**Overall Coverage: $COVERAGE**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Create a detailed table
+          echo "### Coverage by Function" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Function | Coverage |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+
+          # Parse coverage output into table format
+          go tool cover -func=coverage.out | grep -v "total:" | while read -r line; do
+            FILE=$(echo "$line" | awk -F: '{print $1}' | xargs basename)
+            FUNC=$(echo "$line" | awk -F: '{print $2}' | awk '{print $1}')
+            COV=$(echo "$line" | awk '{print $NF}')
+            echo "| $FILE | $FUNC | $COV |" >> $GITHUB_STEP_SUMMARY
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Display logs on failure
+      if: failure()
+      run: |
+        echo "=== Deployment status ==="
+        kubectl get deployments
+        echo "=== Pods ==="
+        kubectl get pods
+        echo "=== Pod logs ==="
+        kubectl logs -l name=k8s-simple-logs --tail=100 || true

@@ -12,10 +12,10 @@ spec:
       labels:
         name: k8s-simple-logs
     spec:
-      imagePullPolicy: Always
       containers:
       - name: k8s-simple-logs
         image: docker.io/derf/k8s-simple-logs:latest
+        imagePullPolicy: IfNotPresent
         command: ["/app/k8s-simple-logs"]
         resources:
           requests:
