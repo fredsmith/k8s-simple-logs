@@ -9,16 +9,32 @@ import (
   "strings"
   "strconv"
   "io"
+  "time"
+  "bufio"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
   corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"github.com/gorilla/websocket"
 )
 
 // Version is set at build time via -ldflags
 var Version = "dev"
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins for simplicity
+	},
+}
+
+type PodContainer struct {
+	PodName       string `json:"podName"`
+	ContainerName string `json:"containerName"`
+	Namespace     string `json:"namespace"`
+	ID            string `json:"id"`
+}
 
 func setupRouter() *gin.Engine {
   // Disable Console Color
@@ -68,11 +84,29 @@ func setupRouter() *gin.Engine {
     }
   }
   fmt.Println("Using namespace:", namespace)
+
   r := gin.New()
   r.Use(
         gin.LoggerWithWriter(gin.DefaultWriter, "/healthcheck"),
         gin.Recovery(),
   )
+
+  // Authentication middleware
+  authMiddleware := func(c *gin.Context) {
+    if os.Getenv("LOGKEY") != "" {
+      key := c.Query("key")
+      if key == "" {
+        key = c.GetHeader("X-API-Key")
+      }
+      if os.Getenv("LOGKEY") != key {
+        c.JSON(http.StatusForbidden, gin.H{"error": "Invalid or missing API key"})
+        c.Abort()
+        return
+      }
+    }
+    c.Next()
+  }
+
   // Health check
   r.GET("/healthcheck", func(c *gin.Context) {
     c.String(http.StatusOK, "still alive")
@@ -86,16 +120,129 @@ func setupRouter() *gin.Engine {
     })
   })
 
-  r.GET("/logs", func(c *gin.Context) {
-    // check if there's a key in the environment, if so, make sure it's in the request
+  // Serve the UI
+  r.GET("/", func(c *gin.Context) {
+    c.Header("Content-Type", "text/html")
+    c.String(http.StatusOK, getHTMLUI())
+  })
+
+  // API: List all pods and containers
+  r.GET("/api/containers", authMiddleware, func(c *gin.Context) {
+    pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+    if err != nil {
+      c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+      return
+    }
+
+    var containers []PodContainer
+    for _, pod := range pods.Items {
+      for _, container := range pod.Spec.Containers {
+        id := fmt.Sprintf("%s/%s", pod.Name, container.Name)
+        containers = append(containers, PodContainer{
+          PodName:       pod.Name,
+          ContainerName: container.Name,
+          Namespace:     namespace,
+          ID:            id,
+        })
+      }
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+      "namespace": namespace,
+      "containers": containers,
+    })
+  })
+
+  // API: Get logs for a specific container
+  r.GET("/api/logs/:pod/:container", authMiddleware, func(c *gin.Context) {
+    podName := c.Param("pod")
+    containerName := c.Param("container")
+
+    var loglines = int64(100)
+    if linesParam := c.Query("lines"); linesParam != "" {
+      if linesVal, err := strconv.Atoi(linesParam); err == nil {
+        loglines = int64(linesVal)
+      }
+    }
+
+    podLogOpts := corev1.PodLogOptions{
+      Container: containerName,
+      TailLines: &loglines,
+    }
+
+    req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
+    logStream, err := req.Stream(context.TODO())
+    if err != nil {
+      c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+      return
+    }
+    defer logStream.Close()
+
+    buf := new(strings.Builder)
+    io.Copy(buf, logStream)
+
+    c.JSON(http.StatusOK, gin.H{
+      "pod":       podName,
+      "container": containerName,
+      "logs":      buf.String(),
+    })
+  })
+
+  // WebSocket: Stream logs in real-time
+  r.GET("/ws/logs/:pod/:container", func(c *gin.Context) {
+    // Check authentication for WebSocket
     if os.Getenv("LOGKEY") != "" {
-      if os.Getenv("LOGKEY") != strings.Join(c.Request.URL.Query()["key"], " ") {
-        c.String(http.StatusForbidden, "Key Required")
-        c.Abort()
+      key := c.Query("key")
+      if os.Getenv("LOGKEY") != key {
+        c.JSON(http.StatusForbidden, gin.H{"error": "Invalid or missing API key"})
         return
       }
     }
 
+    podName := c.Param("pod")
+    containerName := c.Param("container")
+
+    conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+    if err != nil {
+      fmt.Println("WebSocket upgrade failed:", err)
+      return
+    }
+    defer conn.Close()
+
+    // Stream logs with follow enabled
+    podLogOpts := corev1.PodLogOptions{
+      Container: containerName,
+      Follow:    true,
+      TailLines: func(i int64) *int64 { return &i }(100),
+    }
+
+    req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
+    logStream, err := req.Stream(context.TODO())
+    if err != nil {
+      conn.WriteJSON(gin.H{"error": err.Error()})
+      return
+    }
+    defer logStream.Close()
+
+    // Read logs line by line and send over WebSocket
+    scanner := bufio.NewScanner(logStream)
+    for scanner.Scan() {
+      line := scanner.Text()
+      if err := conn.WriteJSON(gin.H{
+        "timestamp": time.Now().Format(time.RFC3339),
+        "log":       line,
+      }); err != nil {
+        break
+      }
+    }
+
+    if err := scanner.Err(); err != nil {
+      conn.WriteJSON(gin.H{"error": err.Error()})
+    }
+  })
+
+  // Legacy endpoint - keep for backward compatibility
+  r.GET("/logs", authMiddleware, func(c *gin.Context) {
     var output = ""
     var loglines = int64(20)
     loglinesval, err := strconv.Atoi(strings.Join(c.Request.URL.Query()["lines"], " "))
@@ -121,9 +268,9 @@ func setupRouter() *gin.Engine {
         }
 
         buf := new(strings.Builder)
-        // get the logs here 
+        // get the logs here
         req := clientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &podLogOpts)
-        // 
+        //
         output += "\n\n\n-----------------------------\n"
         output += fmt.Sprintf("ID: %d %d, \n Namespace: %s \n Pod: %s:\n Container: %s\n", i, j, namespace, pod.Name, container.Name)
         output += "-----------------------------\n"
@@ -133,7 +280,7 @@ func setupRouter() *gin.Engine {
             panic(err.Error())
         }
         io.Copy(buf,logoutput)
-        output += buf.String() 
+        output += buf.String()
         output += "-----------------------------\n\n\n\n\n"
       }
      }

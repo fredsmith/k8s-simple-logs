@@ -64,7 +64,7 @@ func TestLogsEndpointWithInvalidKey(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
-	assert.Equal(t, "Key Required", w.Body.String())
+	assert.Contains(t, w.Body.String(), "Invalid or missing API key")
 }
 
 // TestLogsEndpointWithMissingKey tests /logs endpoint when key is required but missing
@@ -80,7 +80,7 @@ func TestLogsEndpointWithMissingKey(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
-	assert.Equal(t, "Key Required", w.Body.String())
+	assert.Contains(t, w.Body.String(), "Invalid or missing API key")
 }
 
 // TestLogsEndpointWithCustomLines tests /logs endpoint with custom lines parameter
@@ -109,4 +109,30 @@ func TestLogsEndpointWithInvalidLinesParameter(t *testing.T) {
 
 	// Should fall back to default (20 lines) and still succeed
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// TestVersionEndpoint tests the /version endpoint
+func TestVersionEndpoint(t *testing.T) {
+	router := setupRouter()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/version", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "version")
+	assert.Contains(t, w.Body.String(), "namespace")
+}
+
+// TestUIEndpoint tests that the root / endpoint returns HTML
+func TestUIEndpoint(t *testing.T) {
+	router := setupRouter()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
+	assert.Contains(t, w.Body.String(), "k8s-simple-logs")
 }

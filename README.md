@@ -98,17 +98,44 @@ kubectl port-forward svc/k8s-simple-logs 8080:8080
 # Then access at http://localhost:8080/logs
 ```
 
-### Endpoints
+### Web UI
 
-- **`GET /logs`** - Retrieve logs from all pods
-  - `lines=N`: Number of log lines to fetch per container (default: 20)
-  - `key=<value>`: Authentication key (required if LOGKEY is set)
-  - Example: `http://localhost:8080/logs?lines=50&key=mysecret`
+Access the modern web interface at `http://localhost:8080/`
 
-- **`GET /version`** - Check application version and namespace
+Features:
+- **Container sidebar** - Browse and search all pods/containers in the namespace
+- **Real-time log streaming** - WebSocket-based live log updates with automatic reconnection
+- **Auto-scroll** - Toggle automatic scrolling to latest logs
+- **Search** - Filter containers by name
+- **Dark theme** - Terminal-style log display
+- **Resilient connections** - Automatic reconnection on disconnect (up to 5 attempts with exponential backoff)
+
+### API Endpoints
+
+- **`GET /`** - Modern web UI for log viewing
+  - Interactive dashboard with container selection
+  - Real-time WebSocket log streaming
+
+- **`GET /api/containers`** - List all pods and containers
+  - Returns JSON with container list
+  - Authentication: query param `?key=<value>` or header `X-API-Key`
+
+- **`GET /api/logs/:pod/:container`** - Get logs for specific container
+  - Query params: `lines=N` (default: 100), `key=<value>`
+  - Returns JSON with log content
+
+- **`WS /ws/logs/:pod/:container`** - WebSocket for real-time log streaming
+  - Streams logs as JSON messages: `{"timestamp":"...", "log":"..."}`
+  - Authentication: query param `?key=<value>`
+
+- **`GET /logs`** - Legacy endpoint (backward compatible)
+  - Returns all logs from all containers as plain text
+  - Query params: `lines=N` (default: 20), `key=<value>`
+
+- **`GET /version`** - Application version and namespace
   - Returns JSON: `{"version":"2025.1.0","namespace":"default"}`
 
-- **`GET /healthcheck`** - Health check endpoint
+- **`GET /healthcheck`** - Health check
   - Returns: `still alive`
 
 ## Development
