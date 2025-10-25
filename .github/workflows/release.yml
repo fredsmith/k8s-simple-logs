@@ -138,26 +138,28 @@ jobs:
 
       - name: Update Helm repository index
         run: |
+          VERSION=${{ steps.version.outputs.version }}
+
           # Checkout gh-pages branch
           git fetch origin gh-pages:gh-pages || echo "gh-pages doesn't exist yet"
           git checkout gh-pages || git checkout --orphan gh-pages
 
-          # Download existing releases
-          mkdir -p charts
+          # Install helm if not already available
+          if ! command -v helm &> /dev/null; then
+            curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          fi
 
-          # Use chart-releaser to update index
-          curl -sSL https://github.com/helm/chart-releaser/releases/download/v1.6.0/chart-releaser_1.6.0_linux_amd64.tar.gz | tar xz
-          ./cr index \
-            --owner fredsmith \
-            --git-repo k8s-simple-logs \
-            --charts-repo https://fredsmith.github.io/k8s-simple-logs \
-            --index-path index.yaml \
-            --package-path .deploy \
-            --push false
+          # Download the chart package from the release
+          CHART_URL="https://github.com/fredsmith/k8s-simple-logs/releases/download/v${VERSION}/k8s-simple-logs-${VERSION}.tgz"
+          mkdir -p charts
+          curl -L -o "charts/k8s-simple-logs-${VERSION}.tgz" "$CHART_URL" || echo "Chart not yet in release, will be added in next run"
+
+          # Generate/update index.yaml
+          helm repo index . --url https://fredsmith.github.io/k8s-simple-logs --merge index.yaml || helm repo index . --url https://fredsmith.github.io/k8s-simple-logs
 
           # Commit and push index
-          git add index.yaml
-          git commit -m "Update Helm repository index for v${{ steps.version.outputs.version }}" || echo "No index changes"
+          git add index.yaml charts/ || true
+          git commit -m "Update Helm repository index for v${VERSION}" || echo "No index changes"
           git push origin gh-pages
 
       - name: Summary
