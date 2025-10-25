@@ -71,8 +71,7 @@ jobs:
       - name: Build Go binary
         run: |
           go build -o k8s-simple-logs \
-            -ldflags "-X main.Version=${{ steps.version.outputs.version }}" \
-            main.go
+            -ldflags "-X main.Version=${{ steps.version.outputs.version }}"
 
       - name: Run tests
         run: go test -v
