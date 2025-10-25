@@ -54,10 +54,8 @@ jobs:
 
     - name: Deploy to kind cluster
       run: |
-        # Create modified deployment for testing
-        sed 's|docker.io/derf/k8s-simple-logs:latest|k8s-simple-logs:test|g' k8s-deployment.yaml > k8s-deployment-test.yaml
-        sed -i 's|imagePullPolicy: Always|imagePullPolicy: IfNotPresent|g' k8s-deployment-test.yaml
-        kubectl apply -f k8s-deployment-test.yaml
+        # Use local test image instead of pulling from Docker Hub
+        sed 's|docker.io/derf/k8s-simple-logs:latest|k8s-simple-logs:test|g' k8s-deployment.yaml | kubectl apply -f -
 
     - name: Wait for deployment to be ready
       run: |
