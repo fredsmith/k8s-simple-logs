@@ -104,10 +104,10 @@ The CI environment simulates the in-cluster deployment to ensure tests run succe
 
 ## Dependencies
 
-- **Gin**: HTTP framework for routing and request handling
-- **k8s.io/client-go**: Kubernetes client library (v0.24.0)
-- **testify/assert**: Testing assertions library
-- Go 1.18
+- **Gin**: HTTP framework for routing and request handling (v1.11.0)
+- **k8s.io/client-go**: Kubernetes client library (v0.34.1)
+- **testify/assert**: Testing assertions library (v1.11.1)
+- Go 1.24.0
 
 ## Kubernetes Resources
 
