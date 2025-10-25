@@ -2,8 +2,8 @@ apiVersion: v2
 name: k8s-simple-logs
 description: A simple Kubernetes log aggregation utility that exposes logs from all pods in the namespace via HTTP
 type: application
-version: 2025.10.1
-appVersion: "2025.10.1"
+version: 2025.10.2
+appVersion: "2025.10.2"
 keywords:
   - logs
   - kubernetes
