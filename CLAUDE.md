@@ -33,13 +33,60 @@ go test -v -run TestHealthcheck
 
 ## Deployment
 
+The application can be deployed using Helm (recommended), Kustomize, or plain YAML manifests.
+
+### Helm Deployment (Recommended)
+
 ```bash
-# Deploy to Kubernetes
+# Install with default values
+helm install k8s-simple-logs ./helm/k8s-simple-logs -n my-namespace --create-namespace
+
+# Install with authentication enabled
+helm install k8s-simple-logs ./helm/k8s-simple-logs \
+  --set logkey=mysecretkey \
+  --set service.type=NodePort \
+  -n my-namespace --create-namespace
+
+# Upgrade an existing release
+helm upgrade k8s-simple-logs ./helm/k8s-simple-logs
+
+# Uninstall
+helm uninstall k8s-simple-logs
+```
+
+The Helm chart is located in [helm/k8s-simple-logs/](helm/k8s-simple-logs/) with templates for all Kubernetes resources. Configuration options are documented in [values.yaml](helm/k8s-simple-logs/values.yaml).
+
+### Kustomize Deployment
+
+```bash
+# Deploy using remote kustomization
+kubectl apply -k https://github.com/fredsmith/k8s-simple-logs/kustomize/overlays/production
+
+# Or deploy base to a specific namespace
+kubectl apply -k https://github.com/fredsmith/k8s-simple-logs/kustomize/base -n my-namespace
+
+# Local customization
+cd kustomize/overlays/production
+# Edit kustomization.yaml to set namespace and other options
+kustomize build . | kubectl apply -f -
+```
+
+Kustomize files are in [kustomize/base/](kustomize/base/) with an example overlay in [kustomize/overlays/production/](kustomize/overlays/production/).
+
+### Plain YAML
+
+```bash
+# Deploy to default namespace
 kubectl apply -f k8s-deployment.yaml
 
-# Important: Update namespace in k8s-deployment.yaml
-# Change lines 46, 54, and 61 from "default" to your target namespace
+# Deploy to a specific namespace
+kubectl apply -f k8s-deployment.yaml -n my-namespace
+
+# Or deploy directly from GitHub
+kubectl apply -f https://raw.githubusercontent.com/fredsmith/k8s-simple-logs/main/k8s-deployment.yaml -n my-namespace
 ```
+
+Note: The YAML file no longer hardcodes namespaces, so resources will be created in whatever namespace is specified with `-n` or in your current kubectl context.
 
 ## Architecture
 
@@ -111,8 +158,17 @@ The CI environment simulates the in-cluster deployment to ensure tests run succe
 
 ## Kubernetes Resources
 
-The [k8s-deployment.yaml](k8s-deployment.yaml) defines four resources that must be deployed together:
-1. Deployment (single replica)
-2. Service (NodePort on 8080)
-3. Role (viewlogs - grants pod and pod/log read access)
-4. RoleBinding (connects service account to role)
+All deployment methods (Helm, Kustomize, and plain YAML) deploy the same five Kubernetes resources:
+
+1. **ServiceAccount**: `k8s-simple-logs` - dedicated service account for the pod
+2. **Deployment**: Single replica running the application container
+3. **Service**: ClusterIP on port 8080 (NodePort configurable via Helm)
+4. **Role**: Grants `get` and `list` permissions for `pods` and `pods/log` resources
+5. **RoleBinding**: Connects the service account to the role
+
+### File Locations:
+- **Helm**: [helm/k8s-simple-logs/templates/](helm/k8s-simple-logs/templates/)
+- **Kustomize**: [kustomize/base/](kustomize/base/)
+- **Plain YAML**: [k8s-deployment.yaml](k8s-deployment.yaml)
+
+All YAML files are namespace-agnostic and will deploy to whatever namespace is specified via `-n` flag or the current kubectl context.

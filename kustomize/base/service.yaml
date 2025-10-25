@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-simple-logs
+spec:
+  type: ClusterIP
+  selector:
+    app: k8s-simple-logs
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: http
+    name: http
