@@ -2,6 +2,46 @@ apiVersion: v1
 entries:
   k8s-simple-logs:
   - apiVersion: v2
+    appVersion: 2025.10.0
+    created: "2025-10-25T06:50:31.152926286Z"
+    description: A simple Kubernetes log aggregation utility that exposes logs from
+      all pods in the namespace via HTTP
+    digest: 03cf982f48ded0ee5677232e69ff66cf63112972372b98536394de6c5a3bb6d3
+    home: https://github.com/fredsmith/k8s-simple-logs
+    keywords:
+    - logs
+    - kubernetes
+    - monitoring
+    maintainers:
+    - name: fredsmith
+    name: k8s-simple-logs
+    sources:
+    - https://github.com/fredsmith/k8s-simple-logs
+    type: application
+    urls:
+    - https://fredsmith.github.io/k8s-simple-logs/.deploy/k8s-simple-logs-2025.10.0.tgz
+    version: 2025.10.0
+  - apiVersion: v2
+    appVersion: 2025.10.0
+    created: "2025-10-25T06:50:31.153288881Z"
+    description: A simple Kubernetes log aggregation utility that exposes logs from
+      all pods in the namespace via HTTP
+    digest: 03cf982f48ded0ee5677232e69ff66cf63112972372b98536394de6c5a3bb6d3
+    home: https://github.com/fredsmith/k8s-simple-logs
+    keywords:
+    - logs
+    - kubernetes
+    - monitoring
+    maintainers:
+    - name: fredsmith
+    name: k8s-simple-logs
+    sources:
+    - https://github.com/fredsmith/k8s-simple-logs
+    type: application
+    urls:
+    - https://fredsmith.github.io/k8s-simple-logs/charts/k8s-simple-logs-2025.10.0.tgz
+    version: 2025.10.0
+  - apiVersion: v2
     appVersion: latest
     created: "2025-10-25T04:14:07.54956016Z"
     description: A simple Kubernetes log aggregation utility that exposes logs from
@@ -21,4 +61,4 @@ entries:
     urls:
     - https://github.com/fredsmith/k8s-simple-logs/releases/download/k8s-simple-logs-0.1.0/k8s-simple-logs-0.1.0.tgz
     version: 0.1.0
-generated: "2025-10-25T04:14:07.549570049Z"
+generated: "2025-10-25T06:50:31.152416397Z"
