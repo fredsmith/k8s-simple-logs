@@ -11,6 +11,8 @@ import (
   "io"
   "time"
   "bufio"
+  "runtime/debug"
+  _ "embed"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
   corev1 "k8s.io/api/core/v1"
@@ -20,8 +22,36 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Version is set at build time via -ldflags
-var Version = "dev"
+// Embed VERSION file contents
+//go:embed VERSION
+var versionFile string
+
+// version can be set at build time via -ldflags "-X main.version=X.Y.Z"
+var version = ""
+
+// Version returns the application version
+var Version = getVersion()
+
+func getVersion() string {
+	// If version was explicitly set via ldflags (Docker/release builds), use it
+	if version != "" {
+		return version
+	}
+
+	// Use embedded VERSION file (for go install @latest or go build)
+	if versionFile != "" {
+		return strings.TrimSpace(versionFile)
+	}
+
+	// Try to get version from build info (for go install @vX.Y.Z)
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "" && info.Main.Version != "(devel)" {
+			return info.Main.Version
+		}
+	}
+
+	return "dev"
+}
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
