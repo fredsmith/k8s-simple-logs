@@ -1,25 +1,25 @@
 #!/bin/bash
 set -e
 
-# Generate CalVer version: YYYY.M.PATCH
-# Format: 2025.1.0, 2025.1.1, 2025.10.0, etc.
+# Generate Go-compatible CalVer version: v0.YYMM.PATCH
+# Format: v0.2510.0, v0.2510.1, v0.2511.0, etc.
+# Uses v0 major version for Go modules compatibility
 
-YEAR=$(date +%Y)
-MONTH=$(date +%-m)  # No leading zero
+YEAR=$(date +%y)    # 2-digit year (25 for 2025)
+MONTH=$(date +%m)   # 2-digit month with leading zero (01-12)
 
-# Get the latest tag matching current year/month pattern (with 'v' prefix)
-CURRENT_PATTERN="v${YEAR}.${MONTH}."
+# Get the latest tag matching current year/month pattern
+CURRENT_PATTERN="v0.${YEAR}${MONTH}."
 LATEST_TAG=$(git tag -l "${CURRENT_PATTERN}*" | sort -V | tail -n 1)
 
 if [ -z "$LATEST_TAG" ]; then
   # No tags for this month yet, start at 0
   PATCH=0
 else
-  # Extract patch version from tag (strip 'v' prefix first)
-  TAG_WITHOUT_V="${LATEST_TAG#v}"
-  PATCH=$(echo "$TAG_WITHOUT_V" | cut -d'.' -f3)
+  # Extract patch version from tag
+  PATCH=$(echo "$LATEST_TAG" | cut -d'.' -f3)
   PATCH=$((PATCH + 1))
 fi
 
-VERSION="${YEAR}.${MONTH}.${PATCH}"
+VERSION="0.${YEAR}${MONTH}.${PATCH}"
 echo "$VERSION"
