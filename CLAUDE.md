@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 k8s-simple-logs is a simple Kubernetes log aggregation utility that exposes logs from all pods in the current namespace via HTTP. It's designed to run as an in-cluster deployment with minimal configuration.
 
-**Versioning**: The project uses Calendar Versioning (CalVer) with format `YYYY.M.PATCH`. See [VERSIONING.md](VERSIONING.md) for details on the automated release process.
+**Versioning**: The project uses Calendar Versioning (CalVer) with format `v0.YYMM.PATCH` (e.g., v0.2510.0 for October 2025). The `v0` prefix ensures Go modules compatibility.
 
 ## Build & Development Commands
 
@@ -219,20 +219,18 @@ helm template test helm/k8s-simple-logs | kube-linter lint - --config .kube-lint
 
 [.github/workflows/release.yml](.github/workflows/release.yml) handles automated releases:
 1. **Triggers** on pushes to `main` (excluding docs) or manual workflow dispatch
-2. **Generates CalVer version** using `scripts/generate-version.sh` (format: `YYYY.M.PATCH`)
-3. **Updates Helm chart** version and appVersion in Chart.yaml and values.yaml
+2. **Generates CalVer version** using `scripts/generate-version.sh` (format: `v0.YYMM.PATCH`)
+3. **Updates VERSION file** and Helm chart version/appVersion in Chart.yaml and values.yaml
 4. **Builds Go binary** with version embedded via `-ldflags`
 5. **Runs tests** to ensure code quality
 6. **Builds and pushes Docker image** with multi-arch support (amd64, arm64)
-   - Tagged as both `YYYY.M.PATCH` and `latest`
+   - Tagged as both `0.YYMM.PATCH` and `latest`
 7. **Packages Helm chart** with the new version
-8. **Creates Git tag** (`vYYYY.M.PATCH`) and commits version changes
+8. **Creates Git tag** (`v0.YYMM.PATCH`) and commits version changes
 9. **Creates GitHub Release** with auto-generated release notes
 10. **Updates Helm repository** index on GitHub Pages
 
 The workflow can also be triggered manually with a custom version via workflow_dispatch.
-
-See [VERSIONING.md](VERSIONING.md) for complete details on the versioning strategy.
 
 ## Dependencies
 
